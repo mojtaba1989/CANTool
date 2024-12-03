@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>381</width>
-    <height>223</height>
+    <width>380</width>
+    <height>375</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,20 +18,23 @@
     <property name="geometry">
      <rect>
       <x>290</x>
-      <y>160</y>
+      <y>300</y>
       <width>75</width>
       <height>23</height>
      </rect>
     </property>
+    <property name="toolTip">
+     <string extracomment="Convers LOG file(s) to CSV"/>
+    </property>
     <property name="text">
-     <string>log to CSV</string>
+     <string>LOG -&gt; CSV</string>
     </property>
    </widget>
    <widget class="QGroupBox" name="groupBox">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>10</y>
+      <y>160</y>
       <width>271</width>
       <height>171</height>
      </rect>
@@ -53,10 +56,131 @@
        <height>121</height>
       </rect>
      </property>
+     <property name="font">
+      <font>
+       <pointsize>8</pointsize>
+      </font>
+     </property>
      <property name="text">
       <string>TextLabel</string>
      </property>
     </widget>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>381</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="pixmap">
+     <pixmap>logo.jpg</pixmap>
+    </property>
+    <property name="scaledContents">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QGroupBox" name="vbo">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>50</y>
+      <width>361</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>VBO File</string>
+    </property>
+    <widget class="QLabel" name="dir_vob">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>281</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="bowse_vbo_but">
+     <property name="geometry">
+      <rect>
+       <x>300</x>
+       <y>20</y>
+       <width>51</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Browse</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="CAN">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>110</y>
+      <width>361</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>CAN LOG file</string>
+    </property>
+    <widget class="QLabel" name="dir_can">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>281</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="bowse_can_but">
+     <property name="geometry">
+      <rect>
+       <x>300</x>
+       <y>20</y>
+       <width>51</width>
+       <height>23</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Browse</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QPushButton" name="append_but">
+    <property name="geometry">
+     <rect>
+      <x>290</x>
+      <y>270</y>
+      <width>75</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string/>
+    </property>
+    <property name="statusTip">
+     <string comment="Append CAN LOG to VBO file" extracomment="Append CAN LOG to VBO file"/>
+    </property>
+    <property name="text">
+     <string>Append</string>
+    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -64,7 +188,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>381</width>
+     <width>380</width>
      <height>21</height>
     </rect>
    </property>
