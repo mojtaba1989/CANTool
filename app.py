@@ -60,6 +60,12 @@ def insertSeperator(line: str, count: int):
         return newLine
     else:
         return None 
+    
+
+script_path = os.path.abspath(__file__)
+script_directory = os.path.dirname(script_path)
+
+
 class ScrollLabel(QScrollArea):
 
 	# constructor
