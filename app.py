@@ -6,9 +6,29 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import pandas as pd
 import os
+import numpy as np
+
+def str2msec(timestamp: str, ms=False):
+    hours, minutes, seconds, milliseconds = map(int, timestamp.split(":"))
+    total = (hours * 60 * 60) + (minutes * 60) + (seconds) + milliseconds/10000
+    if ms:
+        return total*1000
+    else:
+        return int(total*10)/10
+
+def find_first_match(lst, condition):
+    for index, item in enumerate(lst):
+        if condition(item):
+            return index, item
+    return None, None # Return None if no match is found
+
 
 rep = []
+max_rep = 20
 def reportUpdate(str, obj, new=False):
+    if max_rep > -1:
+        while len(rep)>max_rep:
+            rep.pop(0)
     if new or not rep:
         rep.append(str)
     else:
@@ -101,6 +121,8 @@ class ScrollLabel(QScrollArea):
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
+        self.LOG_FILE_NAME = ""
+        self.VBO_FILE_NAME = ""
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(380, 375)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -164,6 +186,9 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
         self.log2csv_but.clicked.connect(self.convAction)
+        self.bowse_vbo_but.clicked.connect(self.actionOpen_File_VBO)
+        self.bowse_can_but.clicked.connect(self.actionOpen_File_LOG)
+        self.append_but.clicked.connect(self.appendAction)
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -176,6 +201,25 @@ class Ui_MainWindow(object):
         self.CAN.setTitle(_translate("MainWindow", "LOG(*.csv) file"))
         self.bowse_can_but.setText(_translate("MainWindow", "Browse"))
         self.append_but.setText(_translate("MainWindow", "Append"))
+
+
+
+    def actionOpen_File_VBO(self):
+        temp = QtWidgets.QFileDialog.getOpenFileName(caption='Select *.vbo file', filter='vbo(*.vbo)')
+        if temp and temp[0][-4:]=='.vbo':
+            self.VBO_FILE_NAME = temp[0]
+            self.dir_vob.setText(QtCore.QCoreApplication.translate("Dialog", self.VBO_FILE_NAME))
+        else:
+            self.VBO_FILE_NAME = ""
+
+
+    def actionOpen_File_LOG(self):
+        temp = QtWidgets.QFileDialog.getOpenFileName(caption='Select *.csv file', filter='log(*.csv)')
+        if temp and temp[0][-4:]=='.csv':
+            self.LOG_FILE_NAME = temp[0]
+            self.dir_can.setText(QtCore.QCoreApplication.translate("Dialog", self.LOG_FILE_NAME))
+        else:
+            self.LOG_FILE_NAME = ""
 
 
     def convAction(self):
@@ -232,6 +276,158 @@ class Ui_MainWindow(object):
         msg.setText(f'{len(temp[0])-len(failed)} logs have been converted')
         msg.setIcon(QMessageBox.Information)
         msg.exec_()
+    
+    def appendAction(self):
+        if self.VBO_FILE_NAME=="":
+            reportUpdate(f'[ERROR] No VBO file selected', obj=self.report, new=True)
+            return
+        else:
+            reportUpdate(f'[INFO] VBO file selected', obj=self.report, new=True)
+        
+        if self.LOG_FILE_NAME=="":
+            reportUpdate(f'[ERROR] No LOG file selected', obj=self.report, new=True)
+            return
+        else:
+            reportUpdate(f'[INFO] Log file selected', obj=self.report, new=True)
+        
+        secs=[]
+        with open(self.VBO_FILE_NAME, 'r') as f:
+            for i, l in enumerate(f):    
+                if '[' in l:
+                    header = secs.append((l, i))
+
+
+        with open(self.VBO_FILE_NAME, 'r') as f:
+            for sec in secs:
+                if 'column names' in sec[0]:
+                    cols = f.readlines()[sec[1]+1]
+            while cols[-1] in ['\n', ' ']:
+                cols = cols[:-1]
+            cols = cols.split(' ')
+                    
+        with open(self.VBO_FILE_NAME, 'r') as f:
+            for sec in secs:
+                if 'data' in sec[0]:
+                    lines = f.readlines()[sec[1]+1:]
+
+        df = []
+        for l in lines:
+            df.append(list(l[:-1].split(' ')))
+        vbo = pd.DataFrame(df, columns=cols)
+        log = pd.read_csv(self.LOG_FILE_NAME, index_col=None)
+
+        req_cols = ['time', 'IVT_Result_U1', 'IVT_Result_I']
+        reportUpdate(f'[INFO] VBO->CSV [DONE]', obj=self.report, new=True)
+        for req in req_cols:
+            if req not in vbo.columns:
+                reportUpdate(f'[ERROR] VBO: missing {req}', obj=self.report, new=True)
+                return
+        reportUpdate(f'[INFO] VBO is OK', obj=self.report, new=True)
+            
+        req_cols = ['CAN ID', 'Time', 'DLC']
+        for req in req_cols:
+            if req not in log.columns:
+                reportUpdate(f'[ERROR] LOG: missing {req} ', obj=self.report, new=True)
+                return
+        reportUpdate(f'[INFO] LOG is OK', obj=self.report, new=True)
+        reportUpdate(f'[INFO] Processing', obj=self.report, new=True)
+
+        CAN_ID_LIST = np.unique(log['CAN ID'])
+        log['Time_ms'] = [str2msec(i) for i in log['Time']]
+        TIME_LIST = np.unique(log['Time_ms'])
+
+        vbo['Traffic_kB/s'] = [0] * len(vbo['time'])
+        vbo['Traffic_msgs/s'] = [0] * len(vbo['time'])
+        for id in CAN_ID_LIST:
+            vbo[id] = [0] * len(vbo['time'])
+
+        Traffic_byte = []
+        Traffic_msgs = []
+        reportUpdate(f'[INFO] Initializing...', obj=self.report, new=True)
+        reportUpdate(f'[INFO] calc traffic:0%', obj=self.report, new=True)
+        for i, t in enumerate(TIME_LIST):
+            tmp = log[log['Time_ms']==t]
+            Traffic_byte.append(np.sum(tmp['DLC'])/100)
+            Traffic_msgs.append(len(tmp['Time_ms'])/10)
+            reportUpdate(f'[INFO] calc traffic:{np.ceil(i/len(TIME_LIST)*100)}%', obj=self.report, new=False)
+
+        vbo_t = np.array([float(t) for t in vbo['time']])
+        for i,_ in enumerate(vbo_t):
+            vbo_t[i] = np.round(vbo_t[0] + i * 0.1,1)
+        vbo_i = np.array([float(t) for t in vbo['IVT_Result_I']])
+
+        idx,_ = find_first_match(Traffic_byte, lambda x: x>0)
+        t_max_can = TIME_LIST[idx]
+        idx,_ = find_first_match(np.abs(np.diff(vbo_i)), lambda x: x>500)
+        t_max_vbo = vbo_t[idx]
+        log['Time_ms'] += t_max_vbo - t_max_can
+        log['Time_ms'] = np.round(log['Time_ms'], 1)
+        TIME_LIST += t_max_vbo - t_max_can
+        TIME_LIST = np.round(TIME_LIST, 1)
+
+        reportUpdate(f'[INFO] CAN ID traffic:0%', obj=self.report, new=True)
+        for i, id in enumerate(CAN_ID_LIST):
+            tmp = log[log['CAN ID'] == id]
+            lookup = dict(zip(tmp['Time_ms'], tmp['DLC']))
+            vbo[id] = [lookup.get(val, 0) for val in vbo_t]
+            reportUpdate(f'[INFO] CAN ID traffic:{np.ceil((i+1)/len(CAN_ID_LIST)*100)}%', obj=self.report, new=False)
+
+        lookup = dict(zip(list(TIME_LIST), Traffic_byte))
+        vbo['Traffic_kB/s'] = [lookup.get(val, 0) for val in vbo_t]
+        lookup = dict(zip(TIME_LIST, Traffic_msgs))
+        vbo['Traffic_msgs/s'] = [lookup.get(val, 0) for val in vbo_t]
+
+        vbo.to_csv('vbo.csv', sep=' ', header=None, index=None)
+        reportUpdate(f'[INFO] Gnerating new VBO...', obj=self.report, new=True)
+        TARGET_FILE_NAME = self.VBO_FILE_NAME[:-4]+'_E.vbo'
+        with open(self.VBO_FILE_NAME, 'r') as f:
+            T_header = f.readlines()[:secs[1][1]-1]
+            for c in vbo.columns:
+                if c not in cols:
+                    T_header.append(c+'\n')
+            T_header.append('\n')
+
+        with open(self.VBO_FILE_NAME, 'r') as f:
+            T_channel_units = f.readlines()[secs[1][1]:secs[2][1]-1]
+            T_channel_units.append('\n')
+
+        with open(self.VBO_FILE_NAME, 'r') as f:
+            T_fill = f.readlines()[secs[2][1]:secs[4][1]-1]
+            T_fill.append('\n')
+
+        with open(self.VBO_FILE_NAME, 'r') as f:
+            T_columns = f.readlines()[secs[4][1]:secs[5][1]+1]
+            while T_columns[1][-1] in ['\n', ' ']:
+                T_columns[1] = T_columns[1][:-1]
+            for c in vbo.columns:
+                if c not in cols:
+                    T_columns[1] += ' '+c
+            T_columns[1] += '\n'
+
+        with open('vbo.csv', 'r') as f:
+            data = f.readlines()
+
+        with open(TARGET_FILE_NAME, 'w') as f:
+            for l in T_header:
+                f.write(l)
+            for l in T_channel_units:
+                f.write(l)
+            for l in T_fill:
+                f.write(l)
+            for l in T_columns:
+                f.write(l)
+            for l in data:
+                f.write(l)
+        
+        reportUpdate(f'[INFO] DONE', obj=self.report, new=True)
+        
+        msg = QMessageBox()
+        msg.setWindowTitle("Accomplished")
+        msg.setText('New file:' + TARGET_FILE_NAME)
+        msg.setIcon(QMessageBox.Information)
+        msg.exec_()
+
+
 
 if __name__ == "__main__":
     import sys
