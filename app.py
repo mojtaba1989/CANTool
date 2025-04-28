@@ -7,6 +7,7 @@ from PyQt5.QtCore import *
 import pandas as pd
 import os
 import numpy as np
+import glob
 
 def str2msec(timestamp: str, ms=False):
     hours, minutes, seconds, milliseconds = map(int, timestamp.split(":"))
@@ -121,18 +122,16 @@ class ScrollLabel(QScrollArea):
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
-        self.LOG_FILE_NAME = ""
-        self.VBO_FILE_NAME = ""
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(380, 375)
+        MainWindow.resize(379, 431)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.log2csv_but = QtWidgets.QPushButton(self.centralwidget)
-        self.log2csv_but.setGeometry(QtCore.QRect(290, 300, 75, 23))
-        self.log2csv_but.setToolTip("Convers LOG file(s) to CSV")
+        self.log2csv_but.setGeometry(QtCore.QRect(290, 310, 75, 23))
+        self.log2csv_but.setToolTip("")
         self.log2csv_but.setObjectName("log2csv_but")
         self.groupBox = QtWidgets.QGroupBox(self.centralwidget)
-        self.groupBox.setGeometry(QtCore.QRect(10, 160, 271, 171))
+        self.groupBox.setGeometry(QtCore.QRect(10, 210, 271, 171))
         font = QtGui.QFont()
         font.setPointSize(12)
         self.groupBox.setFont(font)
@@ -146,7 +145,7 @@ class Ui_MainWindow(object):
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setGeometry(QtCore.QRect(0, 0, 381, 41))
         self.label.setText("")
-        self.label.setPixmap(QtGui.QPixmap(os.path.join(script_directory,"logo.jpg")))
+        self.label.setPixmap(QtGui.QPixmap(".\\logo.jpg"))
         self.label.setScaledContents(True)
         self.label.setObjectName("label")
         self.vbo = QtWidgets.QGroupBox(self.centralwidget)
@@ -160,7 +159,7 @@ class Ui_MainWindow(object):
         self.bowse_vbo_but.setGeometry(QtCore.QRect(300, 20, 51, 23))
         self.bowse_vbo_but.setObjectName("bowse_vbo_but")
         self.CAN = QtWidgets.QGroupBox(self.centralwidget)
-        self.CAN.setGeometry(QtCore.QRect(10, 110, 361, 51))
+        self.CAN.setGeometry(QtCore.QRect(10, 110, 361, 91))
         self.CAN.setObjectName("CAN")
         self.dir_can = QtWidgets.QLabel(self.CAN)
         self.dir_can.setGeometry(QtCore.QRect(10, 20, 281, 16))
@@ -169,13 +168,24 @@ class Ui_MainWindow(object):
         self.bowse_can_but = QtWidgets.QPushButton(self.CAN)
         self.bowse_can_but.setGeometry(QtCore.QRect(300, 20, 51, 23))
         self.bowse_can_but.setObjectName("bowse_can_but")
+        self.time_offset = QtWidgets.QLabel(self.CAN)
+        self.time_offset.setGeometry(QtCore.QRect(30, 60, 71, 21))
+        self.time_offset.setObjectName("time_offset")
+        self.timeOffset = QtWidgets.QTextEdit(self.CAN)
+        self.timeOffset.setGeometry(QtCore.QRect(100, 60, 104, 21))
+        self.timeOffset.setObjectName("timeOffset")
         self.append_but = QtWidgets.QPushButton(self.centralwidget)
-        self.append_but.setGeometry(QtCore.QRect(290, 270, 75, 23))
-        self.append_but.setToolTip("Append CAN LOG to VBO file")
+        self.append_but.setGeometry(QtCore.QRect(290, 280, 75, 23))
+        self.append_but.setToolTip("")
+        self.append_but.setStatusTip("")
         self.append_but.setObjectName("append_but")
+        self.summary = QtWidgets.QPushButton(self.centralwidget)
+        self.summary.setGeometry(QtCore.QRect(290, 340, 75, 23))
+        self.summary.setToolTip("")
+        self.summary.setObjectName("summary")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 380, 21))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 379, 21))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -189,18 +199,21 @@ class Ui_MainWindow(object):
         self.bowse_vbo_but.clicked.connect(self.actionOpen_File_VBO)
         self.bowse_can_but.clicked.connect(self.actionOpen_File_LOG)
         self.append_but.clicked.connect(self.appendAction)
+        self.summary.clicked.connect(self.getSummary)
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "CAN Tool"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.log2csv_but.setText(_translate("MainWindow", "LOG -> CSV"))
         self.groupBox.setTitle(_translate("MainWindow", "Report"))
-        self.report.setText(_translate("MainWindow", ""))
+        self.report.setText(_translate("MainWindow", "TextLabel"))
         self.vbo.setTitle(_translate("MainWindow", "VBO File"))
         self.bowse_vbo_but.setText(_translate("MainWindow", "Browse"))
-        self.CAN.setTitle(_translate("MainWindow", "LOG(*.csv) file"))
+        self.CAN.setTitle(_translate("MainWindow", "CAN LOG file"))
         self.bowse_can_but.setText(_translate("MainWindow", "Browse"))
+        self.time_offset.setText(_translate("MainWindow", "Time Offset"))
         self.append_but.setText(_translate("MainWindow", "Append"))
+        self.summary.setText(_translate("MainWindow", "Summary"))
 
 
 
@@ -290,6 +303,16 @@ class Ui_MainWindow(object):
         else:
             reportUpdate(f'[INFO] Log file selected', obj=self.report, new=True)
         
+        t_ = self.timeOffset.toPlainText()
+        try:
+            if t_ != '':
+                t_ = float(t_)
+            else:
+                t_ = 0
+        except:
+            reportUpdate(f'[ERROR] time offset should be a number', obj=self.report, new=True)
+            return
+        
         secs=[]
         with open(self.VBO_FILE_NAME, 'r') as f:
             for i, l in enumerate(f):    
@@ -360,9 +383,14 @@ class Ui_MainWindow(object):
         t_max_can = TIME_LIST[idx]
         idx,_ = find_first_match(np.abs(np.diff(vbo_i)), lambda x: x>500)
         t_max_vbo = vbo_t[idx]
-        log['Time_ms'] += t_max_vbo - t_max_can
+        
+        reportUpdate(f'[INFO] Additional time offset {t_}s', obj=self.report, new=True)
+        reportUpdate(f'[INFO] Total time offset {t_max_vbo - t_max_can + t_}s', obj=self.report, new=True)
+        
+
+        # log['Time_ms'] += t_max_vbo - t_max_can + t_
         log['Time_ms'] = np.round(log['Time_ms'], 1)
-        TIME_LIST += t_max_vbo - t_max_can
+        TIME_LIST += t_max_vbo - t_max_can + t_
         TIME_LIST = np.round(TIME_LIST, 1)
 
         reportUpdate(f'[INFO] CAN ID traffic:0%', obj=self.report, new=True)
@@ -427,6 +455,46 @@ class Ui_MainWindow(object):
         msg.setIcon(QMessageBox.Information)
         msg.exec_()
 
+    def getSummary(self):
+        temp = QtWidgets.QFileDialog.getExistingDirectory()
+        if not temp:
+            return
+        reportUpdate(f'[INFO] Selected Folder: {temp}', obj=self.report, new=True)
+        csv_files = glob.glob(temp+'/**/*.csv', recursive=True)
+        reportUpdate(f'[INFO] Found {len(csv_files)} CSV files', obj=self.report, new=True)
+        if len(csv_files) == 0:
+            return
+        ID_dict = {}
+        for f in csv_files:
+            log = pd.read_csv(f)
+            if 'CAN ID' not in log.columns:
+                reportUpdate(f'[ERROR] Invalid CSV: {f}', obj=self.report, new=True)
+                return
+
+            key = os.path.basename(f)
+            ID_dict[key] = np.unique(log['CAN ID'])
+        ID_pool = []
+        for key in ID_dict:
+            for id in ID_dict[key]:
+                if id not in ID_pool:
+                    ID_pool.append(id)
+
+        ID_pool = np.sort(ID_pool)
+        indic = {}
+        indic['CAN ID']=ID_pool
+        for key in ID_dict:
+            val = []
+            for id in ID_pool:
+                if id in ID_dict[key]:
+                    val.append(1)
+                else:
+                    val.append(0)
+            indic[key] = val
+        csv = pd.DataFrame(indic)
+        file_ = os.path.join(temp, 'summary.csv')
+        csv.to_csv(file_, index=None)
+        reportUpdate(f'[INFO] DONE', obj=self.report, new=True)
+        reportUpdate(f'[INFO] Saved Summary: {file_}', obj=self.report, new=True)
 
 
 if __name__ == "__main__":
